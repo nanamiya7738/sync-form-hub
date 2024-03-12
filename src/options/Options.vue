@@ -362,7 +362,8 @@ const refresh = () => {
       </div>
       <div class="fixed bottom-2 right-2 flex flex-row">
         <div ref="buttonRef">
-          <Button class="p-1 border-solid border-2 border-slate-300 rounded-lg delay-150 duration-300 hover:scale-110"
+          <Button
+            class="p-1 border-solid border-2 border-slate-300 rounded-lg delay-150 duration-300 hover:scale-110 bg-white"
             icon="pi pi-send" label="送信" severity="success" text aria-label="Send" @click="send"
             :disabled="selectedTabInvalid || textAreaInvalid" />
         </div>

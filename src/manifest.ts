@@ -41,6 +41,7 @@ export async function getManifest() {
       'tabs',
       'storage',
       'activeTab',
+      'alarms'
     ],
     host_permissions: target_url,
     content_scripts: [

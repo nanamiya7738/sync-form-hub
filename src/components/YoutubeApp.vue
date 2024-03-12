@@ -1,50 +1,54 @@
 <script setup lang="ts">
-import { storageText, storageSendResult, storageTabList, storageSendTarget, TabList, storageAutoDescriptiionExpand } from '~/logic/storage'
+import { storageText, storageSendResult, storageSendTarget, storageAutoDescriptiionExpand, MessageTabSync } from '~/logic/storage'
+import { onMessage, } from 'webext-bridge/content-script'
 
 
-const props = defineProps({
-    tabId: {
-        type: Number,
-        required: true
-    }
-})
 let prevText = ""
+const tabId = ref<number>(0)
 
-setInterval(() => {
-    parseInfo()
-}, 2000)
+onMessage<MessageTabSync | null>('tab-update', ({ data }) => {
+    if (!data) return null
 
-const parseInfo = () => {
-    const infoText = document.querySelector<HTMLDivElement>("ytd-watch-metadata")
-    if (infoText === null) return
-
-    const index = storageTabList.value.findIndex(item => item.tabId === props.tabId)
-    let target: TabList | null = null
-    if (index > 0) {
-        target = storageTabList.value[index]
+    if (tabId.value !== data.tabId) {
+        tabId.value = data.tabId
     }
-    if (!target) return
+    const infoText = document.querySelector<HTMLDivElement>("ytd-watch-metadata")
+    if (infoText === null) return null
+
+    let target: MessageTabSync = {
+        tabId: data.tabId,
+        title: "",
+        channel_href: "",
+        tags: []
+    }
 
     setTitle(infoText, target)
     setChannel(infoText, target)
     setTag(infoText, target)
-}
 
-const setTitle = (infoText: HTMLDivElement, target: TabList) => {
+    return {
+        tabId: tabId.value,
+        title: target.title,
+        channel_href: target.channel_href,
+        tags: target.tags,
+    }
+})
+
+const setTitle = (infoText: HTMLDivElement, target: MessageTabSync) => {
     const title = infoText.querySelector<HTMLDivElement>("yt-formatted-string")
     if (!title || !title?.textContent) return
     if (target.title !== title?.textContent) {
         target.title = title?.textContent
     }
 }
-const setChannel = (infoText: HTMLDivElement, target: TabList) => {
+const setChannel = (infoText: HTMLDivElement, target: MessageTabSync) => {
     const channel = infoText.querySelector<HTMLAreaElement>("a.yt-simple-endpoint")
     if (channel === null) return
     if (target.channel_href !== channel.href) {
         target.channel_href = channel.href
     }
 }
-const setTag = (infoText: HTMLDivElement, target: TabList) => {
+const setTag = (infoText: HTMLDivElement, target: MessageTabSync) => {
     const tagInfo = infoText.querySelector<HTMLDivElement>("ytd-watch-info-text yt-formatted-string#info")
     if (tagInfo === null) return
     const tagList: string[] = []
@@ -81,14 +85,14 @@ const setTag = (infoText: HTMLDivElement, target: TabList) => {
     }
 
     if (tagList.length > 0) {
-        if (JSON.stringify(target.tag) !== JSON.stringify(tagList)) {
-            target.tag = tagList
+        if (JSON.stringify(target.tags) !== JSON.stringify(tagList)) {
+            target.tags = tagList
         }
     }
 }
 
 watch(storageSendTarget, (val) => {
-    if (val.includes(props.tabId)) {
+    if (val.includes(tabId.value)) {
         if (storageText.value !== "") {
             sendComment(storageText.value)
         }
@@ -113,13 +117,13 @@ const sendComment = (message: string) => {
             const sendButton = liveChatFrame.contentDocument.querySelector('div.yt-live-chat-message-input-renderer button.yt-spec-button-shape-next.yt-spec-button-shape-next--text.yt-spec-button-shape-next--icon-button[aria-label="送信"]')
             if (sendButton) {
                 sendButton.dispatchEvent(new MouseEvent('click', { bubbles: true }))
-                storageSendResult.value[props.tabId] = "OK"
+                storageSendResult.value[tabId.value] = "OK"
             } else {
                 throw "送信ボタン検索エラー"
             }
         }, 500)
     } catch (error) {
-        storageSendResult.value[props.tabId] = "NG"
+        storageSendResult.value[tabId.value] = "NG"
         console.error(error)
     }
 }

@@ -1,7 +1,6 @@
-import { onMessage, sendMessage } from 'webext-bridge/background'
-
+import { sendMessage } from 'webext-bridge/background'
 import type { Tabs } from 'webextension-polyfill'
-import { Platform, TabList, storageTabList, storageSendResult } from '~/logic/storage'
+import { Platform, TabList, storageTabList, storageSendResult, storageTabIds, MessageTabSync } from '~/logic/storage'
 
 // only on dev mode
 if (import.meta.hot) {
@@ -17,29 +16,49 @@ browser.runtime.onInstalled.addListener((): void => {
   console.log('Extension installed')
 })
 
-browser.tabs.onUpdated.addListener(async (tabId) => {
-  let tab: Tabs.Tab
-
+browser.tabs.onUpdated.addListener((tabId) => {
   if (tabId === undefined) return
-  try {
-    tab = await browser.tabs.get(tabId)
-  } catch {
-    return
-  }
-  syncTabInfo(tab)
-  try {
-    if (tabId === 1) return
-    sendMessage<{ tabId: number }>('tab-update', { tabId: tabId }, { context: 'content-script', tabId })
-  } catch (error) {
-  }
+  storageTabIds.value = Array.from(new Set([...storageTabIds.value, tabId]))
 })
+browser.tabs.onCreated.addListener((tab) => {
+  if (tab.id === undefined) return
+  storageTabIds.value = Array.from(new Set([...storageTabIds.value, tab.id]))
+})
+
+
+browser.alarms.create({ when: Date.now() + 1000, periodInMinutes: 0.5 });
+browser.alarms.onAlarm.addListener(timerStart);
+
+function timerStart() {
+  let timer: NodeJS.Timer
+  let counter = 0
+
+  timer = setInterval(() => {
+    if (counter >= 30) {
+      clearInterval(timer)
+    }
+    storageTabIds.value.forEach(tabId => {
+      sendMessage<MessageTabSync | null>('tab-update', { tabId: tabId }, { context: 'content-script', tabId: tabId }).then(val => {
+        if (!val) return
+        syncTabInfo(val)
+      }).catch(e => { })
+    })
+    counter++
+  }, 1000)
+}
+
+
 
 browser.tabs.onRemoved.addListener(async (tabId: number, removeInfo: Tabs.OnRemovedRemoveInfoType) => {
   const index = storageTabList.value.findIndex(item => item.tabId === tabId)
   if (index > -1) {
-    const url = storageTabList.value[index].url
     storageTabList.value.splice(index, 1)
-    delete storageSendResult.value[url]
+    delete storageSendResult.value[tabId]
+  }
+
+  const tabIndex = storageTabIds.value.findIndex(tab => tab === tabId)
+  if (tabIndex > -1) {
+    storageTabIds.value.splice(index, 1)
   }
 })
 
@@ -53,11 +72,14 @@ function getPlatformType(url: string): Platform {
   }
 }
 
-function syncTabInfo(tab: Tabs.Tab) {
-  if (tab.id === undefined || tab.title === undefined || tab.url === undefined) {
+async function syncTabInfo(message: MessageTabSync) {
+  let tab: Tabs.Tab
+  try {
+    tab = await browser.tabs.get(message.tabId)
+  } catch (error) {
     return
   }
-  if (tab.id === previousTabInfo?.tabId) {
+  if (tab.id === undefined || tab.title === undefined || tab.url === undefined) {
     return
   }
   const type = getPlatformType(tab.url)
@@ -73,33 +95,21 @@ function syncTabInfo(tab: Tabs.Tab) {
   if (tab.title.match(/^([0-9]+) YouTube$/)) {
     return
   }
+
   previousTabInfo = {
     tabId: tab.id,
     title: tab.title,
     url: tab.url,
     type: type,
-    tag: []
+    tag: message.tags,
+    channel_href: message.channel_href
   }
+
   const index = storageTabList.value.findIndex(item => item.tabId === tab.id)
   if (index === -1) {
     storageTabList.value.push(previousTabInfo)
   } else {
-    previousTabInfo.tag = storageTabList.value[index].tag
     storageTabList.value[index] = previousTabInfo
   }
   storageSendResult.value[tab.id] = ""
 }
-
-onMessage<{ tabId?: number }>('sync-tab', async (message) => {
-  let nowTab: Tabs.Tab
-  storageTabList.value.forEach(async tab => {
-    if (tab.type !== "youtube") return
-    try {
-      nowTab = await browser.tabs.get(tab.tabId)
-    } catch {
-      return
-    }
-    syncTabInfo(nowTab)
-  })
-  return
-})

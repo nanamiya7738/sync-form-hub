@@ -1,5 +1,6 @@
 import { useWebExtensionStorage } from '~/composables/useWebExtensionStorage'
 import { Streamer } from './vishce-types'
+import { watchWithFilter } from '@vueuse/core'
 
 export type Platform = "youtube" | "twitter" | ""
 export interface SendResult {
@@ -13,12 +14,19 @@ export interface TabList {
     tag: string[]
     channel_href?: string
 }
+export type MessageTabSync = {
+    tabId: number,
+    title: string,
+    channel_href: string,
+    tags: Array<string>,
+}
 
 interface StoredStreamer {
     date: Date
     streamerList: Streamer[]
 }
 
+export const storageTabIds = useWebExtensionStorage<number[]>('sfh-tab-ids', [])
 export const storageText = useWebExtensionStorage<string>('sfh-text', '')
 export const storageSendTarget = useWebExtensionStorage<number[]>('sfh-send-target', [])
 export const storageSendResult = useWebExtensionStorage<SendResult>('sfh-send-result', {})
