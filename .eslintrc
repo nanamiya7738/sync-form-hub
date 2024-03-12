@@ -1,0 +1,10 @@
+{
+  "extends": "@antfu",
+  "rules": {
+    "no-console": "off",
+    "typescript-eslint/indent": "off"
+  },
+  "extents": [
+    "prettier"
+  ]
+}
