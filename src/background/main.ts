@@ -1,6 +1,6 @@
-import { sendMessage } from 'webext-bridge/background'
+import { onMessage, sendMessage } from 'webext-bridge/background'
 import type { Tabs } from 'webextension-polyfill'
-import { Platform, TabList, storageTabList, storageSendResult, storageTabIds, MessageTabSync } from '~/logic/storage'
+import { Platform, TabList, storageTabList, storageSendResult, storageTabIds, MessageTabSync, SendResult } from '~/logic/storage'
 
 // only on dev mode
 if (import.meta.hot) {
@@ -113,3 +113,13 @@ async function syncTabInfo(message: MessageTabSync) {
   }
   storageSendResult.value[tab.id] = ""
 }
+
+
+onMessage<SendResult>('send-result', async (message) => {
+  Object.keys(message.data).forEach(key => {
+    const result = message.data[key]
+    if (result === "") return
+    storageSendResult.value[key] = result
+  })
+  return
+})

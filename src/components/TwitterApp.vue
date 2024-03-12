@@ -1,5 +1,6 @@
 <script setup lang="ts">
-import { storageSendResult } from '~/logic/storage'
+import { sendMessage } from 'webext-bridge/content-script'
+import { SendResult } from '~/logic/storage'
 
 
 let count = 0
@@ -7,12 +8,10 @@ let interval: NodeJS.Timer | undefined
 
 onMounted(() => {
     const quary = getUrlQueries()
-
     if (quary["sfhpost"] = "true") {
         interval = setInterval(() => {
             postTweet()
         }, 2000)
-
     }
 })
 
@@ -31,14 +30,14 @@ const postTweet = () => {
 
             sendButton.dispatchEvent(new KeyboardEvent("Escape", { bubbles: true }))
             sendButton.dispatchEvent(new MouseEvent('click', { bubbles: true }))
-            storageSendResult.value[1] = "OK"
+            sendMessage<SendResult>("send-result", { 1: "OK" })
         } else {
             clearInterval(interval)
             window.close()
         }
         count++
     } catch (error) {
-        storageSendResult.value[1] = "NG"
+        sendMessage<SendResult>("send-result", { 1: "NG" })
         clearInterval(interval)
         console.error(error)
     }

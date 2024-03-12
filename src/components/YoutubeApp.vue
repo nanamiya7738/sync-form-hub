@@ -1,6 +1,6 @@
 <script setup lang="ts">
-import { storageText, storageSendResult, storageSendTarget, storageAutoDescriptiionExpand, MessageTabSync } from '~/logic/storage'
-import { onMessage, } from 'webext-bridge/content-script'
+import { storageText, storageSendTarget, storageAutoDescriptiionExpand, MessageTabSync, SendResult } from '~/logic/storage'
+import { onMessage, sendMessage } from 'webext-bridge/content-script'
 
 
 let prevText = ""
@@ -117,13 +117,13 @@ const sendComment = (message: string) => {
             const sendButton = liveChatFrame.contentDocument.querySelector('div.yt-live-chat-message-input-renderer button.yt-spec-button-shape-next.yt-spec-button-shape-next--text.yt-spec-button-shape-next--icon-button[aria-label="送信"]')
             if (sendButton) {
                 sendButton.dispatchEvent(new MouseEvent('click', { bubbles: true }))
-                storageSendResult.value[tabId.value] = "OK"
+                sendMessage<SendResult>("send-result", { [tabId.value]: "OK" })
             } else {
                 throw "送信ボタン検索エラー"
             }
         }, 500)
     } catch (error) {
-        storageSendResult.value[tabId.value] = "NG"
+        sendMessage<SendResult>("send-result", { [tabId.value]: "NG" })
         console.error(error)
     }
 }
