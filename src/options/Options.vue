@@ -236,29 +236,36 @@ const send = () => {
   loading.value = true
   const sendTargetTabs = selectedTab.value?.map(item => item.tabId)
 
-  new Promise<void>((resolve, reject) => {
-    sendTargetTabs.forEach(tabId => {
-      sendMessage<Result>("text-send", text.value, { context: 'content-script', tabId: tabId }).then(
-        res => {
-          if (res === "OK") {
-            resolve()
-          } else {
-            reject()
+  if (sendTargetTabs.includes(1)) {
+    sendTweet()
+  }
+
+  if (sendTargetTabs.filter(tabId => tabId !== 1).length > 0) {
+    new Promise<void>((resolve, reject) => {
+      sendTargetTabs.forEach(tabId => {
+        sendMessage<Result>("text-send", text.value, { context: 'content-script', tabId: tabId }).then(
+          res => {
+            if (res === "OK") {
+              resolve()
+            } else {
+              reject()
+            }
           }
-        }
-      )
-    })
-  }).catch(() =>
-    toast.add({ severity: 'error', summary: '投稿失敗', detail: 'テキストの投稿に失敗しました。', group: 'br', life: 3000 })
-  ).finally(() => {
-    loading.value = false
-    if (sendTargetTabs.includes(1)) {
-      sendTweet()
-    } else {
+        )
+      })
+    }).catch(() =>
+      toast.add({ severity: 'error', summary: '投稿失敗', detail: 'テキストの投稿に失敗しました。', group: 'br', life: 3000 })
+    ).finally(() => {
+      loading.value = false
       validation.value = false
       text.value = ""
-    }
-  })
+    })
+    loading.value = false
+  } else {
+    loading.value = false
+    validation.value = false
+    text.value = ""
+  }
 }
 
 const sendTweet = () => {
