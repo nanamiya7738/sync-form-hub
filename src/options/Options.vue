@@ -272,7 +272,6 @@ const sendTweet = () => {
 }
 
 const refresh = () => {
-  loading.value = true
   validation.value = false
   text.value = ""
   selectedTab.value = []
