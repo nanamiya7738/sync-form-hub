@@ -1,5 +1,7 @@
 <script setup lang="ts">
 import { sendMessage } from 'webext-bridge/content-script'
+import { Result } from '~/logic/type';
+
 
 let count = 0
 let interval: NodeJS.Timer | undefined
@@ -31,14 +33,14 @@ const postTweet = () => {
 
             sendButton.dispatchEvent(new KeyboardEvent("Escape", { bubbles: true }))
             sendButton.dispatchEvent(new MouseEvent('click', { bubbles: true }))
-            sendMessage<string>("twitter-send-result", "OK", { context: 'content-script', tabId: optionTabId })
+            sendMessage<Result>("twitter-send-result", "OK", { context: 'content-script', tabId: optionTabId })
         } else {
             clearInterval(interval)
             window.close()
         }
         count++
     } catch (error) {
-        sendMessage<string>("twitter-send-result", "NG", { context: 'content-script', tabId: optionTabId })
+        sendMessage<Result>("twitter-send-result", "NG", { context: 'content-script', tabId: optionTabId })
         clearInterval(interval)
         console.error(error)
     }

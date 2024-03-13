@@ -15,7 +15,8 @@ import InputText from 'primevue/inputtext';
 import OverlayPanel from 'primevue/overlaypanel';
 import InputGroup from 'primevue/inputgroup';
 import { useToast } from "primevue/usetoast";
-import { storageTagList, storageStreamerList, TabList, Result } from '~/logic/storage'
+import { storageTagList, storageStreamerList } from '~/logic/storage'
+import { Result, TabList } from '~/logic/type';
 
 let thisTabInfo: TabList
 const text = ref<string>("")
@@ -374,4 +375,5 @@ const refresh = () => {
       </div>
     </BlockUI>
   </main>
-</template>
+</template>import { TabList, Result } from '~/logic/type';
+import { TabList, Result } from '~/logic/type';

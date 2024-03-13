@@ -1,5 +1,6 @@
 <script setup lang="ts">
-import { storageAutoDescriptiionExpand, Result, TabList } from '~/logic/storage'
+import { storageAutoDescriptiionExpand } from '~/logic/storage'
+import { Result, TabList } from '~/logic/type';
 import { onMessage } from 'webext-bridge/content-script'
 
 

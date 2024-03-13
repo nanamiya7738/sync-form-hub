@@ -1,6 +1,7 @@
 import { onMessage, sendMessage } from 'webext-bridge/background'
 import type { Tabs } from 'webextension-polyfill'
-import { Platform, TabList, storageStreamerList, storageTagList, storageAutoDescriptiionExpand } from '~/logic/storage'
+import { storageStreamerList, storageTagList, storageAutoDescriptiionExpand } from '~/logic/storage'
+import { Platform, TabList } from '~/logic/type';
 
 
 // only on dev mode
