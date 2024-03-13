@@ -2,7 +2,7 @@
 import axios, { Axios } from 'axios';
 import { Streamer } from '~/logic/vishce-types';
 import { differenceInMinutes } from "date-fns";
-import { sendMessage } from 'webext-bridge/content-script'
+import { onMessage, sendMessage } from 'webext-bridge/content-script'
 import Button from 'primevue/button';
 import Textarea from 'primevue/textarea';
 import FloatLabel from 'primevue/floatlabel';
@@ -15,13 +15,14 @@ import InputText from 'primevue/inputtext';
 import OverlayPanel from 'primevue/overlaypanel';
 import InputGroup from 'primevue/inputgroup';
 import { useToast } from "primevue/usetoast";
-import { storageText, storageSendTarget, storageSendResult, storageTabList, storageTagList, storageStreamerList, TabList } from '~/logic/storage'
-import { throttleFilter, watchWithFilter } from '@vueuse/core';
+import { storageTagList, storageStreamerList, TabList, Result } from '~/logic/storage'
+
+let thisTabInfo: TabList
+const text = ref<string>("")
 
 const op = ref();
 const toast = useToast();
 const buttonRef = ref<HTMLDivElement>()
-const text = ref<string>("")
 const textAreaInvalid = ref(false)
 const loading = ref(false)
 const validation = ref(false)
@@ -78,73 +79,6 @@ watch(selectedTags, (val) => {
   }
 })
 
-
-watchWithFilter(storageTabList, (val) => {
-  tabList.value = val
-
-  const tags: string[] = []
-  val.forEach(tab => {
-    const herf = tab.channel_href?.replace("https://www.youtube.com/", "")
-    storageStreamerList.value.streamerList.forEach(streamer => {
-      let flg = false
-      streamer.external_info?.youtube?.forEach(youtube => {
-        const temp = "@" + youtube.handle_id?.toLowerCase()
-        if (temp === herf?.toLowerCase() || youtube.channel_id === herf) {
-          flg = true
-        }
-      })
-
-      if (flg) {
-        streamer.external_info?.twitter?.forEach(twitter => {
-          if (twitter.hash_tags) {
-            tags.push(...twitter.hash_tags?.map(tag => "#" + tag.name))
-          }
-        })
-      }
-    })
-  })
-  const temp = val.map(item => item.tag).reduce((a, b) => [...a, ...b], [])
-
-  tagList.value = Array.from(new Set([...tags, ...temp]))
-}, { eventFilter: throttleFilter(1000), immediate: true })
-
-watchWithFilter(storageSendResult, (sendResult) => {
-  let resultAll: boolean | null = null
-
-  Object.keys(sendResult).forEach(key => {
-    const result = sendResult[key]
-    if (result === "") {
-      return
-    }
-    switch (result) {
-      case "OK":
-        resultAll = true && (resultAll ?? true)
-        break;
-      case "NG":
-        resultAll = false
-        break;
-      default:
-        break;
-    }
-  })
-
-  if (resultAll === null) {
-    return
-  }
-
-  if (resultAll) {
-    validation.value = false
-    text.value = ""
-    storageText.value = ""
-    storageSendTarget.value = []
-  } else {
-    console.error(sendResult)
-    toast.add({ severity: 'error', summary: '投稿失敗', detail: 'テキストの投稿に失敗しました。', group: 'br', life: 3000 });
-  }
-  loading.value = false
-}, { eventFilter: throttleFilter(2000) })
-
-
 onMounted(() => {
   if (storageStreamerList.value.streamerList.length === 0) {
     getVishceStreamerList()
@@ -155,6 +89,64 @@ onMounted(() => {
     }
   }
 })
+
+onMessage<TabList>('tab-update', ({ data }) => {
+  if (!data) return "NG"
+  thisTabInfo = data
+  return "OK"
+})
+
+onMessage<TabList[]>('get-all-tab', ({ data }) => {
+  console.log(data)
+  if (!data) return "NG"
+  tabList.value = data
+  return "OK"
+})
+
+onMessage<string>('twitter-send-result', ({ data }) => {
+  if (data === "OK") {
+    validation.value = false
+    text.value = ""
+  } else {
+    console.error("Twitter投稿エラー")
+    toast.add({ severity: 'error', summary: '投稿失敗', detail: 'テキストの投稿に失敗しました。', group: 'br', life: 3000 });
+  }
+  return
+})
+
+setInterval(() => {
+  const tags: string[] = []
+  tabList.value?.forEach(tab => {
+    tags.push(...getTargetChannelTags(tab.channel_href))
+    tags.push(...tab?.tags)
+  })
+  tagList.value = Array.from(new Set([...tags]))
+}, 1000)
+
+const getTargetChannelTags = (channel_href?: string) => {
+  const tags: string[] = []
+
+  const herf = channel_href?.replace("https://www.youtube.com/", "")
+  storageStreamerList.value.streamerList.forEach(streamer => {
+    let flg = false
+    streamer.external_info?.youtube?.forEach(youtube => {
+      const temp = "@" + youtube.handle_id?.toLowerCase()
+      if (temp === herf?.toLowerCase() || youtube.channel_id === herf) {
+        flg = true
+      }
+    })
+
+    if (flg) {
+      streamer.external_info?.twitter?.forEach(twitter => {
+        if (twitter.hash_tags) {
+          tags.push(...twitter.hash_tags?.map(tag => "#" + tag.name))
+        }
+      })
+    }
+  })
+  return tags
+}
+
 
 const getVishceStreamerList = () => {
   const axiosClient: Axios = axios.create()
@@ -241,37 +233,49 @@ const send = () => {
   }
 
   loading.value = true
-  storageText.value = text.value
-  Object.keys(storageSendResult.value).forEach(key => {
-    storageSendResult.value[key] = ""
-  })
-  storageSendTarget.value = selectedTab.value?.map(item => item.tabId)
+  const sendTargetTabs = selectedTab.value?.map(item => item.tabId)
 
-  if (storageSendTarget.value.includes(1)) {
-    let text = storageText.value
-    if (selectedTags.value.length > 0) {
-      text = text + "%20" + selectedTags.value.join("%20")
+  new Promise<void>((resolve, reject) => {
+    sendTargetTabs.forEach(tabId => {
+      sendMessage<Result>("text-send", text.value, { context: 'content-script', tabId: tabId }).then(
+        res => {
+          if (res === "OK") {
+            resolve()
+          } else {
+            reject()
+          }
+        }
+      )
+    })
+  }).catch(() =>
+    toast.add({ severity: 'error', summary: '投稿失敗', detail: 'テキストの投稿に失敗しました。', group: 'br', life: 3000 })
+  ).finally(() => {
+    loading.value = false
+    if (sendTargetTabs.includes(1)) {
+      sendTweet()
+    } else {
+      validation.value = false
+      text.value = ""
     }
-    text = text.replaceAll("#", "%23").replace(/(\n|\r)+/g, "%0A")
-    const url = `https://twitter.com/intent/post?text=${text}&sfhpost=true`
-    window.open(url, '_blank', 'width=400, height=380, top=0')
+  })
+}
+
+const sendTweet = () => {
+  let twitterText = text.value
+  if (selectedTags.value.length > 0) {
+    twitterText = twitterText + "%20" + selectedTags.value.join("%20")
   }
+  twitterText = twitterText.replaceAll("#", "%23").replace(/(\n|\r)+/g, "%0A")
+  const url = `https://twitter.com/intent/post?text=${twitterText}&sfh=${thisTabInfo?.tabId}`
+  window.open(url, '_blank', 'width=400, height=380, top=0')
 }
 
 const refresh = () => {
   loading.value = true
   validation.value = false
   text.value = ""
-  storageText.value = ""
   selectedTab.value = []
-  storageSendTarget.value = []
-  Object.keys(storageSendResult.value).forEach(key => {
-    storageSendResult.value[key] = ""
-  })
   selectedTagsText.value = ""
-  sendMessage<{ tabId?: number }>("sync-tab", {}).finally(() => {
-    loading.value = false
-  })
 }
 </script>
 
@@ -364,7 +368,7 @@ const refresh = () => {
         <div ref="buttonRef">
           <Button
             class="p-1 border-solid border-2 border-slate-300 rounded-lg delay-150 duration-300 hover:scale-110 bg-white"
-            icon="pi pi-send" label="送信" severity="success" text aria-label="Send" @click="send"
+            icon="pi pi-send" label="送信" severity="info" text aria-label="Send" @click="send"
             :disabled="selectedTabInvalid || textAreaInvalid" />
         </div>
       </div>

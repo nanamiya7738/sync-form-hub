@@ -2,40 +2,20 @@ import { useWebExtensionStorage } from '~/composables/useWebExtensionStorage'
 import { Streamer } from './vishce-types'
 
 export type Platform = "youtube" | "twitter" | ""
-export interface TabList {
+export type TabList = {
     tabId: number
     title: string
     type: Platform
     url: string
-    tag: string[]
+    tags: Array<string>,
     channel_href?: string
 }
-export type MessageTabSync = {
-    tabId: number,
-    title: string,
-    channel_href: string,
-    tags: Array<string>,
-}
-export type SendResult = {
-    [id: string]: "OK" | "NG" | ""
-}
-
+export type Result = "OK" | "NG"
 interface StoredStreamer {
     date: Date
     streamerList: Streamer[]
 }
 
-export const storageTabIds = useWebExtensionStorage<number[]>('sfh-tab-ids', [])
-export const storageText = useWebExtensionStorage<string>('sfh-text', '')
-export const storageSendTarget = useWebExtensionStorage<number[]>('sfh-send-target', [])
-export const storageSendResult = useWebExtensionStorage<SendResult>('sfh-send-result', {})
-export const storageTabList = useWebExtensionStorage<TabList[]>('sfh-tab-list', [{
-    tabId: 1,
-    title: "Twitter",
-    url: "https://twitter.com/home",
-    type: "twitter",
-    tag: []
-}])
 export const storageStreamerList = useWebExtensionStorage<StoredStreamer>('sfh-streamer-list', { date: new Date, streamerList: [] })
 export const storageTagList = useWebExtensionStorage<string[]>('sfh-tag-list', [])
 export const storageAutoDescriptiionExpand = useWebExtensionStorage<boolean>('sfh-auto-descriptiion-expand', true)

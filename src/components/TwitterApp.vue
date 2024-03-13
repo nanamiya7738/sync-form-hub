@@ -1,14 +1,15 @@
 <script setup lang="ts">
 import { sendMessage } from 'webext-bridge/content-script'
-import { SendResult } from '~/logic/storage'
-
 
 let count = 0
 let interval: NodeJS.Timer | undefined
+let optionTabId: number
 
 onMounted(() => {
     const quary = getUrlQueries()
-    if (quary["sfhpost"] = "true") {
+    if (quary["sfh"] !== undefined) {
+        optionTabId = Number(quary["sfh"])
+
         interval = setInterval(() => {
             postTweet()
         }, 2000)
@@ -30,14 +31,14 @@ const postTweet = () => {
 
             sendButton.dispatchEvent(new KeyboardEvent("Escape", { bubbles: true }))
             sendButton.dispatchEvent(new MouseEvent('click', { bubbles: true }))
-            sendMessage<SendResult>("send-result", { 1: "OK" })
+            sendMessage<string>("twitter-send-result", "OK", { context: 'content-script', tabId: optionTabId })
         } else {
             clearInterval(interval)
             window.close()
         }
         count++
     } catch (error) {
-        sendMessage<SendResult>("send-result", { 1: "NG" })
+        sendMessage<string>("twitter-send-result", "NG", { context: 'content-script', tabId: optionTabId })
         clearInterval(interval)
         console.error(error)
     }

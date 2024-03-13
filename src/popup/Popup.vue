@@ -1,7 +1,8 @@
 <script setup lang="ts">
 import Button from 'primevue/button';
 import ToggleButton from 'primevue/togglebutton';
-import { storageTabList, storageSendResult, storageText, storageAutoDescriptiionExpand } from '~/logic/storage'
+import { sendMessage } from 'webext-bridge/content-script';
+import { storageAutoDescriptiionExpand } from '~/logic/storage'
 
 const openOptionsPage = () => {
   const url = browser.runtime.getURL('/dist/options/index.html')
@@ -13,15 +14,7 @@ const openTwitter = () => {
 }
 
 const clear = () => {
-  storageTabList.value = [{
-    tabId: 1,
-    title: "Twitter",
-    url: "https://twitter.com/home",
-    type: "twitter",
-    tag: []
-  }]
-  storageText.value = ""
-  storageSendResult.value = { "https://twitter.com/home": "" }
+  sendMessage("clear-storage", {}, { context: "background", tabId: 0 })
 }
 </script>
 
