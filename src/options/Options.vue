@@ -98,7 +98,6 @@ onMessage<TabList>('tab-update', ({ data }) => {
 })
 
 onMessage<TabList[]>('get-all-tab', ({ data }) => {
-  console.log(data)
   if (!data) return "NG"
   tabList.value = data
   return "OK"

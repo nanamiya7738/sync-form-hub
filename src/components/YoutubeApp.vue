@@ -13,6 +13,10 @@ onMessage<TabList>('tab-update', ({ data }) => {
     setTitle(infoText, data)
     setChannel(infoText, data)
     setTag(infoText, data)
+
+    if (storageAutoDescriptiionExpand.value) {
+        setTagFromDescription(infoText, data)
+    }
     return data
 })
 
@@ -58,27 +62,26 @@ const setTag = (infoText: HTMLDivElement, target: TabList) => {
             }
         })
     }
-
-    if (storageAutoDescriptiionExpand.value) {
-        const descriptiion = infoText.querySelector<HTMLDivElement>("div#description")
-        if (descriptiion) {
-            const expand = descriptiion.querySelector<HTMLDivElement>("tp-yt-paper-button#expand")
-            const collepse = descriptiion.querySelector<HTMLDivElement>("tp-yt-paper-button#collapse")
-            if (collepse && collepse.hidden && expand) {
-                expand.dispatchEvent(new Event('click', { bubbles: true }))
-
-                const textList = descriptiion.querySelectorAll<HTMLAreaElement>("yt-attributed-string.ytd-text-inline-expander > span > a")
-                textList.forEach(element => {
-                    if (element.textContent?.includes("#")) {
-                        tagList.push(element.textContent)
-                    }
-                });
-            }
-        }
-    }
-
     target.tags = tagList
 }
+
+const setTagFromDescription = (infoText: HTMLDivElement, target: TabList) => {
+    const descriptiion = infoText.querySelector<HTMLDivElement>("div#description")
+    if (descriptiion) {
+        const expand = descriptiion.querySelector<HTMLDivElement>("tp-yt-paper-button#expand")
+        const collepse = descriptiion.querySelector<HTMLDivElement>("tp-yt-paper-button#collapse")
+        const textList = descriptiion.querySelectorAll<HTMLAreaElement>("yt-attributed-string.ytd-text-inline-expander > span > a")
+        if (collepse && collepse.hidden && expand) {
+            expand.dispatchEvent(new Event('click', { bubbles: true }))
+        }
+        textList.forEach(element => {
+            if (element.outerText?.match(/^[#＃].*$/)) {
+                target.tags.push(element.outerText)
+            }
+        });
+    }
+}
+
 
 const sendComment = (message: string) => {
     return new Promise<Result>((resolve, reject) => {
