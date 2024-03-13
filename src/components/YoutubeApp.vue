@@ -13,7 +13,6 @@ onMessage<TabList>('tab-update', ({ data }) => {
     setTitle(infoText, data)
     setChannel(infoText, data)
     setTag(infoText, data)
-
     return data
 })
 
@@ -39,6 +38,7 @@ const setChannel = (infoText: HTMLDivElement, target: TabList) => {
         target.channel_href = channel.href
     }
 }
+
 const setTag = (infoText: HTMLDivElement, target: TabList) => {
     const tagInfo = infoText.querySelector<HTMLDivElement>("ytd-watch-info-text yt-formatted-string#info")
     if (tagInfo === null) return
@@ -63,21 +63,22 @@ const setTag = (infoText: HTMLDivElement, target: TabList) => {
         const descriptiion = infoText.querySelector<HTMLDivElement>("div#description")
         if (descriptiion) {
             const expand = descriptiion.querySelector<HTMLDivElement>("tp-yt-paper-button#expand")
-            if (expand) {
+            const collepse = descriptiion.querySelector<HTMLDivElement>("tp-yt-paper-button#collapse")
+            if (collepse && collepse.hidden && expand) {
                 expand.dispatchEvent(new Event('click', { bubbles: true }))
+
+                const textList = descriptiion.querySelectorAll<HTMLAreaElement>("yt-attributed-string.ytd-text-inline-expander > span > a")
+                textList.forEach(element => {
+                    if (element.textContent?.includes("#")) {
+                        tagList.push(element.textContent)
+                    }
+                });
             }
-            const textList = descriptiion.querySelectorAll<HTMLAreaElement>("yt-attributed-string.ytd-text-inline-expander > span > a")
-            textList.forEach(element => {
-                if (element.textContent?.includes("#")) {
-                    tagList.push(element.textContent)
-                }
-            });
         }
     }
 
     target.tags = tagList
 }
-
 
 const sendComment = (message: string) => {
     return new Promise<Result>((resolve, reject) => {
