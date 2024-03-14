@@ -80,6 +80,10 @@ watch(selectedTags, (val) => {
   }
 })
 
+watch(tagList, (val) => {
+  selectedTags.value = selectedTags.value.filter(tag => val.includes(tag))
+})
+
 onMounted(() => {
   if (storageStreamerList.value.streamerList.length === 0) {
     getVishceStreamerList()
