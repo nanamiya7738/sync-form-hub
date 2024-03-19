@@ -81,8 +81,12 @@ watch(selectedTags, (val) => {
 })
 
 watch(tagList, (val) => {
-  selectedTags.value = selectedTags.value.filter(tag => val.includes(tag))
+  tagCheck()
 })
+watch(storageTagList, (val) => {
+  tagCheck()
+})
+
 
 onMounted(() => {
   if (storageStreamerList.value.streamerList.length === 0) {
@@ -151,6 +155,9 @@ const getTargetChannelTags = (channel_href?: string) => {
   return tags
 }
 
+const tagCheck = () => {
+  selectedTags.value = selectedTags.value.filter(tag => [...tagList.value, ...storageTagList.value].includes(tag))
+}
 
 const getVishceStreamerList = () => {
   const axiosClient: Axios = axios.create()
@@ -231,6 +238,7 @@ const handleKeydownEnter = (e: KeyboardEvent) => {
 
 const send = () => {
   checkSelectedList()
+
   validation.value = true
   if (text.value === "" || selectedTab.value.length === 0) {
     return
@@ -353,10 +361,10 @@ const refresh = () => {
             <div>
               <div class="mt-1 mr-auto flex flex-row">
                 <div class="flex flex-wrap">
-                  <Tag v-for="tag in storageTagList" class="m-1 delay-150 duration-300 hover:scale-105 cursor-pointer "
-                    :value="tag" rounded :severity="selectedTags.includes(tag) ? 'success' : 'secondary'">
+                  <Tag v-for="tag in storageTagList" class="m-1 delay-150 duration-300 hover:scale-105 cursor-pointer"
+                    rounded :severity="selectedTags.includes(tag) ? 'success' : 'secondary'">
                     <div class="flex align-items-center gap-2 px-1 relative">
-                      <p class="pr-3 " @click=" selectTag(tag)">{{ tag }}</p>
+                      <p class="pr-3 " @click="selectTag(tag)">{{ tag }}</p>
                       <Button icon="pi pi-times" class="h-[10px] w-[10px] absolute right-0 top-1 mt-auto mb-auto z-20"
                         text rounded aria-label="refresh" @click="deleteTag(tag)" />
                     </div>
@@ -384,5 +392,4 @@ const refresh = () => {
       </div>
     </BlockUI>
   </main>
-</template>import { TabList, Result } from '~/logic/type';
-import { TabList, Result } from '~/logic/type';
+</template>
