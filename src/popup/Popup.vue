@@ -1,20 +1,20 @@
 <script setup lang="ts">
 import Button from 'primevue/button';
 import ToggleButton from 'primevue/togglebutton';
-import { sendMessage } from 'webext-bridge/content-script';
+import { sendMessage } from 'webext-bridge/popup';
 import { storageAutoDescriptiionExpand } from '~/logic/storage'
 
 const openOptionsPage = () => {
   const url = browser.runtime.getURL('/dist/options/index.html')
   window.open(url, '_blank',
-    'width=600, height=400, top=0, left=200,　resizable=yes, scrollbars=yes, menubar=yes, toolbar=yes')
+    'width=800, height=600, top=0, left=0,　resizable=yes, scrollbars=yes, menubar=yes, toolbar=yes')
 }
 const openTwitter = () => {
   window.open("https://twitter.com/home")
 }
 
 const clear = () => {
-  sendMessage("clear-storage", {}, { context: "background", tabId: 0 })
+  sendMessage("clear-storage", {}, "background")
 }
 </script>
 

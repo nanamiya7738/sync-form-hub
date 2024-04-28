@@ -1,10 +1,6 @@
 export type Result = "OK" | "NG"
-export type Platform = "youtube" | "twitter" | ""
-export type TabList = {
+export type TabInfo = {
     tabId: number
     title: string
-    type: Platform
     url: string
-    tags: Array<string>,
-    channel_href?: string
 }

@@ -1,5 +1,6 @@
 import type { App } from 'vue'
 import PrimeVue from 'primevue/config'
+import Tooltip from 'primevue/tooltip';
 import ToastService from 'primevue/toastservice';
 
 export function setupApp(app: App) {
@@ -16,4 +17,5 @@ export function setupApp(app: App) {
   // example excluding content-script context: if (context !== 'content-script') app.use(i18n)
   app.use(PrimeVue)
   app.use(ToastService);
+  app.directive('tooltip', Tooltip);
 }

@@ -1,52 +1,97 @@
 <script setup lang="ts">
 import { storageAutoDescriptiionExpand } from '~/logic/storage'
-import { Result, TabList } from '~/logic/type';
-import { onMessage } from 'webext-bridge/content-script'
-
+import { Result, TabInfo } from '~/logic/type';
+import { onMessage, sendMessage } from 'webext-bridge/content-script'
+import { storageStreamerList } from '~/logic/storage'
 
 let prevText = ""
+let channelHref = ""
+let prevTagList: string[] = []
+let prevPageData: TabInfo = {
+    tabId: 0,
+    title: "",
+    url: ""
+}
 
-onMessage<TabList>('tab-update', ({ data }) => {
+setInterval(() => {
     const infoText = document.querySelector<HTMLDivElement>("ytd-watch-metadata")
     if (infoText === null) return null
 
-    setTitle(infoText, data)
-    setChannel(infoText, data)
-    setTag(infoText, data)
-
-    if (storageAutoDescriptiionExpand.value) {
-        setTagFromDescription(infoText, data)
-    }
-    return data
-})
+    sendPageData(infoText)
+    sendTagData(infoText)
+}, 1000)
 
 onMessage<string>('text-send', async ({ data }) => {
     return await sendComment(data)
 })
 
-onMessage<TabList[]>('get-all-tab', ({ data }) => {
-    return "OK"
-})
+const sendPageData = (infoText: HTMLDivElement) => {
+    const url = window.location.href
+    const pageData: TabInfo = {
+        tabId: 0,
+        title: "",
+        url: url
+    }
+    setTitle(infoText, pageData)
 
-const setTitle = (infoText: HTMLDivElement, target: TabList) => {
+    if (JSON.stringify(prevPageData) !== JSON.stringify(pageData)) {
+        sendMessage<TabInfo>("send-page-data", pageData)
+        prevPageData = pageData
+    }
+}
+
+const sendTagData = (infoText: HTMLDivElement) => {
+    let tagList: string[] = []
+
+    setChannelTag(infoText, tagList)
+    setTag(infoText, tagList)
+    if (storageAutoDescriptiionExpand.value) {
+        setTagFromDescription(infoText, tagList)
+    }
+    tagList = Array.from(new Set([...tagList]))
+
+    if (JSON.stringify(prevTagList) !== JSON.stringify(tagList)) {
+        sendMessage<string[]>("send-tag-data", tagList)
+        prevTagList = tagList
+    }
+}
+
+const setTitle = (infoText: HTMLDivElement, target: TabInfo) => {
     const title = infoText.querySelector<HTMLDivElement>("yt-formatted-string")
     if (!title || !title?.textContent) return
     if (target.title !== title?.textContent) {
         target.title = title?.textContent
     }
 }
-const setChannel = (infoText: HTMLDivElement, target: TabList) => {
+
+const setChannelTag = (infoText: HTMLDivElement, tagList: string[]) => {
     const channel = infoText.querySelector<HTMLAreaElement>("a.yt-simple-endpoint")
     if (channel === null) return
-    if (target.channel_href !== channel.href) {
-        target.channel_href = channel.href
+    if (channelHref !== channel.href) {
+        const herf = channelHref?.replace("https://www.youtube.com/", "")
+        storageStreamerList.value.streamerList.forEach(streamer => {
+            let flg = false
+            streamer.external_info?.youtube?.forEach(youtube => {
+                const temp = "@" + youtube.handle_id?.toLowerCase()
+                if (temp === herf?.toLowerCase() || youtube.channel_id === herf) {
+                    flg = true
+                }
+            })
+            if (flg) {
+                streamer.external_info?.twitter?.forEach(twitter => {
+                    if (twitter.hash_tags) {
+                        tagList.push(...twitter.hash_tags?.map(tag => "#" + tag.name))
+                    }
+                })
+            }
+        })
+        channelHref = channel.href
     }
 }
 
-const setTag = (infoText: HTMLDivElement, target: TabList) => {
+const setTag = (infoText: HTMLDivElement, tagList: string[]) => {
     const tagInfo = infoText.querySelector<HTMLDivElement>("ytd-watch-info-text yt-formatted-string#info")
     if (tagInfo === null) return
-    const tagList: string[] = []
     tagInfo.querySelectorAll("a").forEach(tag => {
         if (tag.textContent) {
             tagList.push(tag?.textContent)
@@ -62,10 +107,9 @@ const setTag = (infoText: HTMLDivElement, target: TabList) => {
             }
         })
     }
-    target.tags = tagList
 }
 
-const setTagFromDescription = (infoText: HTMLDivElement, target: TabList) => {
+const setTagFromDescription = (infoText: HTMLDivElement, tagList: string[]) => {
     const descriptiion = infoText.querySelector<HTMLDivElement>("div#description")
     if (descriptiion) {
         const expand = descriptiion.querySelector<HTMLDivElement>("tp-yt-paper-button#expand")
@@ -76,12 +120,11 @@ const setTagFromDescription = (infoText: HTMLDivElement, target: TabList) => {
         }
         textList.forEach(element => {
             if (element.outerText?.match(/^[#＃].*$/)) {
-                target.tags.push(element.outerText)
+                tagList.push(element.outerText)
             }
         });
     }
 }
-
 
 const sendComment = (message: string) => {
     return new Promise<Result>((resolve, reject) => {

@@ -17,7 +17,7 @@ export async function getManifest() {
     version: pkg.version,
     description: pkg.description,
     action: {
-      default_icon: './assets/Vische.png',
+      default_icon: './assets/icon_sfh.png',
       default_popup: './dist/popup/index.html',
     },
     options_ui: {
@@ -33,17 +33,15 @@ export async function getManifest() {
         service_worker: './dist/background/index.mjs',
       },
     icons: {
-      16: './assets/Vische.png',
-      48: './assets/Vische.png',
-      128: './assets/Vische.png',
+      16: './assets/icon_sfh.png',
+      48: './assets/icon_sfh.png',
+      128: './assets/icon_sfh.png',
     },
     permissions: [
       'tabs',
-      'storage',
-      'activeTab',
-      'alarms'
+      'storage'
     ],
-    host_permissions: target_url,
+    // host_permissions: target_url,
     content_scripts: [
       {
         matches: target_url,

@@ -1,7 +1,5 @@
 <script setup lang="ts">
-import { Platform } from '~/logic/storage'
-
-const appType = ref<Platform>("")
+const appType = ref<"youtube" | "twitter" | "">("")
 
 setInterval(() => {
   const url = window.location.href
