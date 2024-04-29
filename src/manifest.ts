@@ -38,7 +38,6 @@ export async function getManifest() {
       128: './assets/icon_sfh.png',
     },
     permissions: [
-      'tabs',
       'storage'
     ],
     // host_permissions: target_url,
