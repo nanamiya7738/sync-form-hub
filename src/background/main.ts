@@ -1,7 +1,7 @@
 
 import { onMessage, sendMessage } from 'webext-bridge/background'
 import { storageStreamerList, storageTagList, storageAutoDescriptiionExpand } from '~/logic/storage'
-import { TabInfo } from '~/logic/type';
+import { AppType, TabInfo } from '~/logic/type';
 
 // only on dev mode
 if (import.meta.hot) {
@@ -39,6 +39,15 @@ onMessage<string[]>("send-tag-data", async (message) => {
   const { data } = message;
   try {
     sendMessage<TabInfo[]>("update-tag-list", data, "options")
+  } catch (error) {
+    console.log(error)
+  }
+})
+
+onMessage<AppType>("move-page", async (message) => {
+  const { sender } = message;
+  try {
+    sendMessage<number>("delete-tab", sender.tabId, "options")
   } catch (error) {
     console.log(error)
   }

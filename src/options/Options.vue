@@ -9,7 +9,6 @@ import InputSwitch from "primevue/inputswitch";
 import BlockUI from 'primevue/blockui';
 import ProgressSpinner from 'primevue/progressspinner';
 import Toast from 'primevue/toast';
-import Listbox from 'primevue/listbox';
 import { useToast } from "primevue/usetoast";
 import { Result, TabInfo } from '~/logic/type';
 import { storageStreamerList } from '~/logic/storage'
@@ -17,18 +16,18 @@ import { differenceInMinutes } from "date-fns";
 import { Streamer } from '~/logic/vishce-types';
 
 const toast = useToast();
-
 const text = ref<string>("")
+const textConut = ref<number>(0)
+const maxTextConut = ref<number>(280)
 const buttonRef = ref<HTMLDivElement>()
-const textAreaInvalid = ref(false)
 const loading = ref(false)
 const validation = ref(false)
+const textAreaInvalid = ref(false)
 const selectedTabInvalid = ref(false)
 const twitterSend = ref(true)
 const selectedTags = ref<string[]>([])
-const tabInfoList = ref<TabInfo[]>([])
-const selectedTabInfoList = ref<TabInfo[]>([])
-const tags = ref<string[]>([])
+const selectedTabs = ref<TabInfo[]>([])
+const shareTweetMode = ref(false)
 
 let thisTabId: number
 const setTabInfo = async () => {
@@ -48,35 +47,6 @@ onMounted(() => {
   }
 })
 
-onMessage<string[]>('update-tag-list', ({ data }) => {
-  data.forEach(tag => {
-    const index = tags.value.findIndex(val => val === tag)
-    if (index === -1) {
-      if (tags.value.length > 11) {
-        tags.value.shift()
-      }
-      tags.value.unshift(tag)
-    }
-  })
-})
-
-onMessage<TabInfo>('send-tabinfo', ({ data }) => {
-  if (!data) return "NG"
-  const i = tabInfoList.value.findIndex(item => item.tabId === data.tabId)
-  if (i > -1) {
-    tabInfoList.value[i] = data
-  } else {
-    tabInfoList.value.push(data)
-  }
-  return "OK"
-})
-
-onMessage<number>('delete-tab', ({ data }) => {
-  if (data === undefined) return "NG"
-  tabInfoList.value = tabInfoList.value.filter(item => item.tabId !== data)
-  return "OK"
-})
-
 onMessage<string>('twitter-send-result', ({ data }) => {
   if (data === "OK") {
     validation.value = false
@@ -88,50 +58,33 @@ onMessage<string>('twitter-send-result', ({ data }) => {
   return
 })
 
-watch(validation, (val) => {
-  if (val === true) {
-    textAreaInvalid.value = text.value === ""
-    selectedTabInvalid.value = selectedTabInfoList.value.length === 0
-  } else {
-    textAreaInvalid.value = false
-    selectedTabInvalid.value = false
-  }
-})
-
 watch(text, (val) => {
-  if (!validation.value) {
-    textAreaInvalid.value = false
-    return
-  }
-
-  if (val === "") {
-    textAreaInvalid.value = true
+  textConut.value = countText(val)
+})
+watch(selectedTags, (val) => {
+  if (val.length > 0) {
+    maxTextConut.value = (280 - countText(val.join(" ")))
   } else {
-    textAreaInvalid.value = false
+    maxTextConut.value = 280
   }
-})
+}, { deep: true })
 
-watch(tabInfoList, (val) => {
-  selectedTabInfoList.value =
-    selectedTabInfoList.value.filter(tabInfo => val.map(item => item.tabId).includes(tabInfo.tabId))
-})
-
-watch(selectedTabInfoList, (val) => {
-  if (!validation.value) {
-    selectedTabInvalid.value = false
-    return
+const countText = (text: string) => {
+  let count: number = 0
+  for (let i = 0, len = text.length; i < len; i++) {
+    let c = text.charCodeAt(i)
+    if (!text[i].match(/\r?\n/g)) {
+      if (c >= 0x0 && c <= 0x7f) {
+        count += 1
+      } else {
+        count += 2
+      }
+    } else {
+      count += 2
+    }
   }
-
-  if (val.length === 0) {
-    selectedTabInvalid.value = true
-  } else {
-    selectedTabInvalid.value = false
-  }
-})
-
-watch(twitterSend, (val) => {
-  selectedTabInvalid.value = false
-})
+  return count
+}
 
 const getStreamerList = async () => {
   const url = "https://vische-server.onrender.com/api/streamer"
@@ -153,9 +106,41 @@ const handleKeydownEnter = (e: KeyboardEvent) => {
   }, 250)
 };
 
-const send = () => {
+const setShareMode = () => {
+  shareTweetMode.value = true
+  twitterSend.value = true
+  text.value = `${selectedTabs.value[0].title}
+  ${selectedTabs.value[0].url} @YouTubeより`
+}
+
+const unsetShareMode = () => {
+  shareTweetMode.value = false
+  text.value = ""
+}
+
+const validate = () => {
   validation.value = true
-  if (!twitterSend.value && (text.value === "" || selectedTabInfoList.value.length === 0)) {
+  if (text.value === "") {
+    textAreaInvalid.value = true
+  } else {
+    textAreaInvalid.value = false
+  }
+
+  if (!twitterSend.value && selectedTabs.value.length === 0) {
+    selectedTabInvalid.value = true
+  } else {
+    selectedTabInvalid.value = false
+  }
+
+  if (selectedTabInvalid.value || textAreaInvalid.value) {
+    return false
+  } else {
+    return true
+  }
+}
+
+const send = () => {
+  if (!validate()) {
     return
   }
   loading.value = true
@@ -163,9 +148,10 @@ const send = () => {
   if (twitterSend.value) {
     sendTweet()
   }
-  if (selectedTabInfoList.value.length > 0) {
+  if (!shareTweetMode.value && selectedTabs.value.length > 0) {
     sendYoutube()
   } else {
+    shareTweetMode.value = false
     validation.value = false
     text.value = ""
     loading.value = false
@@ -175,10 +161,8 @@ const send = () => {
 const sendTweet = () => {
   let twitterText = text.value
   if (selectedTags.value.length > 0) {
-    // twitterText = twitterText + "%20" + selectedTags.value.join("%20")
     twitterText = twitterText + " " + selectedTags.value.join(" ")
   }
-  // twitterText = twitterText.replaceAll("#", "%23").replace(/(\n|\r)+/g, "%0A")
   twitterText = encodeURIComponent(twitterText)
   const url = `https://twitter.com/intent/post?text=${twitterText}&sfh=${thisTabId}`
   window.open(url, '_blank', 'width=400, height=380, top=0')
@@ -186,7 +170,7 @@ const sendTweet = () => {
 
 const sendYoutube = () => {
   new Promise<void>((resolve, reject) => {
-    selectedTabInfoList.value.forEach(tab => {
+    selectedTabs.value.forEach(tab => {
       sendMessage<Result>("text-send", text.value, { context: 'content-script', tabId: tab.tabId }).then(
         res => {
           if (res === "OK") {
@@ -211,7 +195,7 @@ const refresh = () => {
   validation.value = false
   text.value = ""
   twitterSend.value = true
-  selectedTabInfoList.value = []
+  selectedTabs.value = []
 }
 </script>
 
@@ -235,29 +219,25 @@ const refresh = () => {
             :class="textAreaInvalid ? ' border-red-500' : ' border-slate-400'" v-model="text" rows="6" cols="30"
             :invalid="textAreaInvalid" />
           <label>テキストを入力</label>
+          <div class="flex flex-row">
+            <div v-if="selectedTabs.length === 1">
+              <Button v-if="shareTweetMode" class="bg-white" icon="pi pi-twitter" label="共有をキャンセル" severity="info" text
+                aria-label="share canncel" @click="unsetShareMode" />
+              <Button v-if="!shareTweetMode" class="bg-white" icon="pi pi-twitter" label="選択した枠を共有" severity="info" text
+                aria-label="share" @click="setShareMode" />
+            </div>
+            <p class="ml-auto">{{ textConut }} / {{ maxTextConut }}</p>
+          </div>
         </FloatLabel>
-
         <div class="flex flex-row w-[100vw]">
           <div class="basis-1/2">
-            <div class="pl-1 pb-1 flex flex-row">
-              <p class="mr-2">送信先:</p>
-              <p v-if="selectedTabInfoList.length === 0" :class="selectedTabInvalid ? 'text-red-400' : 'text-gray-500'">
-                送信先を選択してください</p>
-            </div>
-            <Listbox v-model="selectedTabInfoList" :options="tabInfoList" multiple optionLabel="title"
-              emptyMessage="Youtubeのタブが検出されていません"
-              :pt="{ button: { class: `p-1 m-auto border-solid border-2 ${selectedTabInvalid ? 'border-red-400' : 'border-slate-300'}` } }">
-              <template #option="slotProps">
-                <div class="flex flex-row">
-                  <i class="p-0 pi pi-youtube"></i>
-                  <p class="p-0 ml-1 text-xs line-clamp-1 ">{{ slotProps.option.title }}
-                  </p>
-                </div>
-              </template>
-            </Listbox>
+            <BlockUI :blocked="shareTweetMode === true" class="z-10">
+              <TabSelector @select-tabs="(value) => selectedTabs = value" @share="() => shareTweetMode = true"
+                :selected-tab-invalid="selectedTabInvalid" />
+            </BlockUI>
           </div>
           <div class="basis-1/2">
-            <TagSelector :selected-tags="selectedTags" :tags="tags" />
+            <TagSelector @select-tags="(value) => selectedTags = value" />
           </div>
         </div>
 
@@ -266,12 +246,11 @@ const refresh = () => {
         <i class="mt-auto mb-auto p-0 pi pi-twitter"></i>
         <p class="mt-auto mb-auto text-xs mr-2" :class="selectedTabInvalid ? 'text-red-400' : 'text-gray-500'">
           Twitter同時投稿を有効化</p>
-        <InputSwitch class="mr-5" v-model="twitterSend" />
+        <InputSwitch class="mr-5" v-model="twitterSend" :disabled="shareTweetMode" />
         <div ref="buttonRef">
           <Button
             class="p-1 border-solid border-2 border-slate-300 rounded-lg delay-150 duration-300 hover:scale-110 bg-white"
-            icon="pi pi-send" label="送信" severity="info" text aria-label="Send" @click="send"
-            :disabled="selectedTabInvalid || textAreaInvalid" />
+            icon="pi pi-send" label="送信" severity="info" text aria-label="Send" @click="send" />
         </div>
       </div>
     </BlockUI>

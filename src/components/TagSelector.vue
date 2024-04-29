@@ -1,4 +1,6 @@
 <script setup lang="ts">
+import { onMessage } from 'webext-bridge/options'
+
 import Button from 'primevue/button';
 import Tag from 'primevue/tag';
 import InputText from 'primevue/inputtext';
@@ -7,30 +9,38 @@ import ScrollPanel from 'primevue/scrollpanel';
 import InputGroup from 'primevue/inputgroup';
 import { storageTagList } from '~/logic/storage'
 
-const props = defineProps({
-    tags: {
-        type: Array<String>,
-        required: true
-    },
-    selectedTags: {
-        type: Array<String>,
-        required: true
-    }
-})
-
+const tags = ref<string[]>([])
+const selectedTags = ref<string[]>([])
 const op = ref();
 const addTag = ref<string>()
+
+const emit = defineEmits<{
+    (e: 'selectTags', value: string[]): void
+}>()
+
+onMessage<string[]>('update-tag-list', ({ data }) => {
+    data.forEach(tag => {
+        const index = tags.value.findIndex(val => val === tag)
+        if (index === -1) {
+            if (tags.value.length > 11) {
+                tags.value.pop()
+                console.log(tags.value)
+            }
+            tags.value.unshift(tag)
+        }
+    })
+})
 
 const toggle = (event: Event) => {
     op.value.toggle(event);
 }
 
-const selectTag = (tag: String) => {
-    const index = props.selectedTags.findIndex(val => val === tag)
+const selectTag = (tag: string) => {
+    const index = selectedTags.value.findIndex(val => val === tag)
     if (index > -1) {
-        props.selectedTags.splice(index, 1)
+        selectedTags.value.splice(index, 1)
     } else {
-        props.selectedTags.push(tag)
+        selectedTags.value.push(tag)
     }
 }
 
@@ -70,11 +80,15 @@ const deleteTag = (tag: string) => {
         storageTagList.value.splice(index, 1)
     }
 
-    const selectedIndex = props.selectedTags.findIndex(val => val === tag)
+    const selectedIndex = selectedTags.value.findIndex(val => val === tag)
     if (selectedIndex > -1) {
-        props.selectedTags.splice(index, 1)
+        selectedTags.value.splice(index, 1)
     }
 }
+
+watch(selectedTags, (val) => {
+    emit("selectTags", val)
+}, { deep: true })
 </script>
 
 <template>
@@ -84,10 +98,10 @@ const deleteTag = (tag: string) => {
         </div>
         <ScrollPanel style="width: 90%; height: 60px">
             <div class="flex flex-col">
-                <p v-if="props.selectedTags.length > 0" class="text-[11px] ml-2 mr-auto">※選択したタグはTwitter投稿内容にのみ付与されます
+                <p v-if="selectedTags.length > 0" class="text-[11px] ml-2 mr-auto">※選択したタグはTwitter投稿内容にのみ付与されます
                 </p>
                 <div class="flex flex-wrap">
-                    <Tag v-for="tag in props.selectedTags" class="m-1 w-[150px] " rounded :severity="'contrast'"
+                    <Tag v-for="tag in selectedTags" class="m-1 w-[150px] " rounded :severity="'contrast'"
                         @click="selectTag(tag)">
                         <div class="flex align-items-center gap-2 px-1 relative">
                             <p class="pr-3 delay-150 duration-300 hover:scale-105 cursor-pointer">{{ tag }}</p>
@@ -115,7 +129,7 @@ const deleteTag = (tag: string) => {
         <p class="text-[11px] ml-2 mr-auto"><i class="pi pi-thumbtack text-[10px]"></i>
             をクリックすることで保持できます。
         </p>
-        <ScrollPanel style="width: 95%; height: 40vh">
+        <ScrollPanel style="width: 95%; height: 8.8rem">
             <div class="flex flex-col">
                 <div class="flex flex-wrap">
                     <Tag v-for="tag in storageTagList" class="m-1 w-[180px]" rounded
@@ -129,7 +143,7 @@ const deleteTag = (tag: string) => {
                     </Tag>
                 </div>
                 <div class="flex flex-wrap mt-2">
-                    <Tag v-for="tag in props.tags" class="m-1 w-[120px]" rounded
+                    <Tag v-for="tag in tags" class="m-1 w-[120px]" rounded
                         :severity="selectedTags.includes(tag) ? 'success' : 'secondary'">
                         <div class="flex align-items-center gap-2 px-1 relative w-100">
                             <p class="delay-150 duration-300 hover:scale-105 cursor-pointer mr-auto line-clamp-1 text-[10px]"

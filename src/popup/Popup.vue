@@ -7,7 +7,7 @@ import { storageAutoDescriptiionExpand } from '~/logic/storage'
 const openOptionsPage = () => {
   const url = browser.runtime.getURL('/dist/options/index.html')
   window.open(url, '_blank',
-    'width=800, height=600, top=0, left=0,　resizable=yes, scrollbars=yes, menubar=yes, toolbar=yes')
+    'width=870, height=550, top=0, left=0,　resizable=yes, scrollbars=yes, menubar=yes, toolbar=yes')
 }
 const openTwitter = () => {
   window.open("https://twitter.com/home")

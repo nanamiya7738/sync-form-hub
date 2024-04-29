@@ -10,7 +10,8 @@ let prevTagList: string[] = []
 let prevPageData: TabInfo = {
     tabId: 0,
     title: "",
-    url: ""
+    url: "",
+    isLive: false
 }
 
 setInterval(() => {
@@ -30,9 +31,11 @@ const sendPageData = (infoText: HTMLDivElement) => {
     const pageData: TabInfo = {
         tabId: 0,
         title: "",
-        url: url
+        url: url,
+        isLive: false
     }
     setTitle(infoText, pageData)
+    setIsLibe(pageData)
 
     if (JSON.stringify(prevPageData) !== JSON.stringify(pageData)) {
         sendMessage<TabInfo>("send-page-data", pageData)
@@ -56,12 +59,18 @@ const sendTagData = (infoText: HTMLDivElement) => {
     }
 }
 
-const setTitle = (infoText: HTMLDivElement, target: TabInfo) => {
+const setTitle = (infoText: HTMLDivElement, pageData: TabInfo) => {
     const title = infoText.querySelector<HTMLDivElement>("yt-formatted-string")
     if (!title || !title?.textContent) return
-    if (target.title !== title?.textContent) {
-        target.title = title?.textContent
+    if (pageData.title !== title?.textContent) {
+        pageData.title = title?.textContent
     }
+}
+const setIsLibe = (pageData: TabInfo) => {
+    const liveChatFrame = document.querySelector<HTMLIFrameElement>('iframe.style-scope.ytd-live-chat-frame')
+    if (!liveChatFrame?.contentDocument) return
+    const chatInputBox = liveChatFrame.contentDocument.querySelector<HTMLDivElement>('#input.yt-live-chat-text-input-field-renderer')
+    pageData.isLive = chatInputBox !== null
 }
 
 const setChannelTag = (infoText: HTMLDivElement, tagList: string[]) => {

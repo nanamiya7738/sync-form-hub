@@ -1,12 +1,26 @@
 <script setup lang="ts">
-const appType = ref<"youtube" | "twitter" | "">("")
+import { sendMessage } from 'webext-bridge/content-script'
+import { AppType } from '~/logic/type';
+
+const appType = ref<AppType>("")
 
 setInterval(() => {
   const url = window.location.href
+  let tempAppType: AppType = ""
   if (url.includes("https://www.youtube.com/watch?")) {
-    appType.value = "youtube"
+    tempAppType = "youtube"
   } else if (url.includes("https://twitter.com/")) {
-    appType.value = "twitter"
+    tempAppType = "twitter"
+  }
+
+  if (appType.value !== tempAppType) {
+    appType.value = tempAppType
+
+    if (tempAppType !== "youtube") {
+      setTimeout(() => {
+        sendMessage<AppType>("move-page", appType.value)
+      }, 2000)
+    }
   }
 }, 1000)
 </script>
