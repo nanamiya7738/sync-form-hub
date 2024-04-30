@@ -109,8 +109,7 @@ const handleKeydownEnter = (e: KeyboardEvent) => {
 const setShareMode = () => {
   shareTweetMode.value = true
   twitterSend.value = true
-  text.value = `${selectedTabs.value[0].title}
-  ${selectedTabs.value[0].url} @YouTubeより`
+  text.value = `${selectedTabs.value[0].title} \r${selectedTabs.value[0].url} @YouTubeより`
 }
 
 const unsetShareMode = () => {
