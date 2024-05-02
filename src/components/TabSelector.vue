@@ -22,6 +22,9 @@ onMessage<TabInfo>('send-tabinfo', ({ data }) => {
     if (!data) return "NG"
     const i = tabs.value.findIndex(item => item.tabId === data.tabId)
     if (i > -1) {
+        if (tabs.value[i].url !== data.url) {
+            sendMessage("change-page-selection", "deselected", { context: "content-script", tabId: data.tabId })
+        }
         tabs.value[i] = data
     } else {
         tabs.value.push(data)
@@ -32,6 +35,7 @@ onMessage<TabInfo>('send-tabinfo', ({ data }) => {
 onMessage<number>('delete-tab', ({ data }) => {
     if (data === undefined) return "NG"
     tabs.value = tabs.value.filter(item => item.tabId !== data)
+    sendMessage("change-page-selection", "deselected", { context: "content-script", tabId: data })
     return "OK"
 })
 
