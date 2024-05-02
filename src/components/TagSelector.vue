@@ -2,17 +2,78 @@
 import { onMessage } from 'webext-bridge/options'
 
 import Button from 'primevue/button';
-import Tag from 'primevue/tag';
+import MultiSelect from 'primevue/multiselect';
+import ContextMenu, { ContextMenuProps } from 'primevue/contextmenu';
 import InputText from 'primevue/inputtext';
 import OverlayPanel from 'primevue/overlaypanel';
-import ScrollPanel from 'primevue/scrollpanel';
 import InputGroup from 'primevue/inputgroup';
 import { storageTagList } from '~/logic/storage'
+import { watchWithFilter } from '@vueuse/core';
 
-const tags = ref<string[]>([])
-const selectedTags = ref<string[]>([])
+type TagListType = "detected" | "fiexed" | "none"
+interface TagValue {
+    label: string;
+    type: TagListType;
+    value: string;
+}
+interface TagGroup {
+    label: string;
+    type: TagListType;
+    items: TagValue[];
+}
+
+const tagGroups = ref<TagGroup[]>([
+    {
+        label: "（タグなしで送信する場合は選択）",
+        type: "none",
+        items: [{
+            label: "タグなし",
+            type: "none",
+            value: "##"
+        }]
+    },
+    {
+        label: "固定中",
+        type: "fiexed",
+        items: []
+    },
+    {
+        label: "検出されたタグ",
+        type: "detected",
+        items: []
+    }
+])
+const selectedTags = ref<TagValue[]>([])
 const op = ref();
 const addTag = ref<string>()
+const rightClickedTag = ref<string>("");
+const detectedMenu = ref();
+const fixedMenu = ref();
+const detectedItems = ref<ContextMenuProps["model"]>([
+    {
+        label: 'タグを固定', icon: 'pi pi-thumbtack', command: () => {
+            const storagedIndex = storageTagList.value.findIndex(item => item === rightClickedTag.value)
+            if (storagedIndex < 0) {
+                storageTagList.value.push(rightClickedTag.value)
+            }
+        }
+    },
+]);
+const fixedItems = ref<ContextMenuProps["model"]>([
+    {
+        label: 'タグ固定を解除', icon: 'pi pi-thumbtack', command: () => {
+            const selectedIndex = selectedTags.value.findIndex(item => item.value === rightClickedTag.value)
+            if (selectedIndex > -1) {
+                selectedTags.value.splice(selectedIndex, 1)
+            }
+            const storagedIndex = storageTagList.value.findIndex(item => item === rightClickedTag.value)
+            if (storagedIndex > -1) {
+                storageTagList.value.splice(storagedIndex, 1)
+            }
+            rightClickedTag.value = ""
+        }
+    },
+]);
 
 const emit = defineEmits<{
     (e: 'selectTags', value: string[]): void
@@ -20,32 +81,46 @@ const emit = defineEmits<{
 
 onMessage<string[]>('update-tag-list', ({ data }) => {
     data.forEach(tag => {
-        const index = tags.value.findIndex(val => val === tag)
+        const index = tagGroups.value[2].items.findIndex(val => val.value === tag)
         if (index === -1) {
-            if (tags.value.length > 11) {
-                tags.value.pop()
-                console.log(tags.value)
+            if (tagGroups.value[2].items.length > 11) {
+                tagGroups.value[2].items.pop()
             }
-            tags.value.unshift(tag)
+            tagGroups.value[2].items.unshift({
+                label: tag,
+                type: "detected",
+                value: tag
+            })
         }
     })
 })
 
+watch(selectedTags, (val) => {
+    emit("selectTags", val.map(item => item.value))
+}, { deep: true })
+
+watchWithFilter(storageTagList, (val) => {
+    tagGroups.value[1].items = val.map(tag => {
+        return {
+            label: tag,
+            type: "fiexed",
+            value: tag
+        }
+    })
+}, { deep: true })
+
+const initTagGroups = () => {
+    tagGroups.value[1].items = storageTagList.value.map(tag => {
+        return {
+            label: tag,
+            type: "fiexed",
+            value: tag
+        }
+    })
+}
+
 const toggle = (event: Event) => {
     op.value.toggle(event);
-}
-
-const selectTag = (tag: string) => {
-    const index = selectedTags.value.findIndex(val => val === tag)
-    if (index > -1) {
-        selectedTags.value.splice(index, 1)
-    } else {
-        selectedTags.value.push(tag)
-    }
-}
-
-const fixTag = (tag: String) => {
-    storageTagList.value = Array.from(new Set([...storageTagList.value, tag.toString()]))
 }
 
 const addTagData = () => {
@@ -69,51 +144,42 @@ const addTagData = () => {
     }
 
     if (list.length > 0) {
-        storageTagList.value = Array.from(new Set([...storageTagList.value, ...list]))
+        storageTagList.value = Array.from(new Set([...list, ...storageTagList.value]))
     }
     addTag.value = ""
 }
 
-const deleteTag = (tag: string) => {
-    const index = storageTagList.value.findIndex(val => val === tag)
-    if (index > -1) {
-        storageTagList.value.splice(index, 1)
+const onRightClick = (event: any, type: "detected" | "fiexed", tag: string) => {
+    rightClickedTag.value = tag;
+    if (type === "detected") {
+        detectedMenu.value.show(event);
+    } else if (type === "fiexed") {
+        fixedMenu.value.show(event);
     }
+};
 
-    const selectedIndex = selectedTags.value.findIndex(val => val === tag)
-    if (selectedIndex > -1) {
-        selectedTags.value.splice(index, 1)
+const optionDisabled = (value: TagValue) => {
+    const isTagNone = value.value === "##"
+    if (selectedTags.value.length === 0) {
+        return false
+    }
+    if (selectedTags.value.map(item => item.value).includes("##")) {
+        return !isTagNone
+    } else {
+        return isTagNone
     }
 }
 
-watch(selectedTags, (val) => {
-    emit("selectTags", val)
-}, { deep: true })
+initTagGroups()
 </script>
 
 <template>
-    <div class="flex flex-col">
-        <div class="mr-auto pl-1 pb-1 flex flex-row">
-            <p class="mr-2 mt-auto mb-auto">選択済みタグ:</p>
-        </div>
-        <ScrollPanel style="width: 90%; height: 60px">
-            <div class="flex flex-col">
-                <p v-if="selectedTags.length > 0" class="text-[11px] ml-2 mr-auto">※選択したタグはTwitter投稿内容にのみ付与されます
-                </p>
-                <div class="flex flex-wrap">
-                    <Tag v-for="tag in selectedTags" class="m-1 w-[150px] " rounded :severity="'contrast'"
-                        @click="selectTag(tag)">
-                        <div class="flex align-items-center gap-2 px-1 relative">
-                            <p class="pr-3 delay-150 duration-300 hover:scale-105 cursor-pointer">{{ tag }}</p>
-                        </div>
-                    </Tag>
-                </div>
-            </div>
-        </ScrollPanel>
-
-        <div class="mr-auto pl-1 pb-1 flex flex-row">
-            <p class="mr-2 mt-auto mb-auto">タグ一覧:</p>
-            <i class="mt-auto mb-auto p-0 pi pi-plus-circle" @click="toggle"></i>
+    <div class="flex flex-col w-full">
+        <div class="pl-1 pb-1 flex flex-row items-center">
+            <i class="mr-1 p-0 pi pi-twitter"></i>
+            <p class="mr-2"> タグ選択:</p>
+            <i class="ml-auto p-0 pi pi-plus-circle cursor-pointer" @click="toggle"></i>
+            <p class="mr-2 ml-1 cursor-pointer" @click="toggle">タグ追加</p>
             <OverlayPanel ref="op">
                 <p>手動でタグを追加します</p>
                 <div class="flex flex-column gap-3 w-25rem">
@@ -126,34 +192,29 @@ watch(selectedTags, (val) => {
                 </div>
             </OverlayPanel>
         </div>
-        <p class="text-[11px] ml-2 mr-auto"><i class="pi pi-thumbtack text-[10px]"></i>
-            をクリックすることで保持できます。
-        </p>
-        <ScrollPanel style="width: 95%; height: 8.8rem">
-            <div class="flex flex-col">
-                <div class="flex flex-wrap">
-                    <Tag v-for="tag in storageTagList" class="m-1 w-[180px]" rounded
-                        :severity="selectedTags.includes(tag) ? 'success' : 'secondary'">
-                        <div class="flex align-items-center gap-2 px-1 relative w-100">
-                            <Button icon="pi pi-times" class="h-[12px] w-[12px] mt-auto mb-auto z-20" text rounded
-                                aria-label="refresh" @click="deleteTag(tag)" />
-                            <p class="delay-150 duration-300 hover:scale-105 cursor-pointer line-clamp-1"
-                                v-tooltip.bottom="tag" @click="selectTag(tag)">{{ tag }}</p>
-                        </div>
-                    </Tag>
+        <MultiSelect v-model="selectedTags" :options="tagGroups" optionLabel="label" optionGroupLabel="label"
+            optionGroupChildren="items" display="chip" placeholder="ハッシュタグを選択" class="w-[98%]"
+            :optionDisabled="optionDisabled" :pt="{
+                item: {
+                    class: 'flex align-items-center py-0'
+                }, label: {
+                    class: 'flex flex-start'
+                }
+            }">
+            <template #option="slotProps">
+                <div class="flex w-full py-3"
+                    @contextmenu="onRightClick($event, slotProps.option.type, slotProps.option.value)">
+                    {{ slotProps.option.label }}
                 </div>
-                <div class="flex flex-wrap mt-2">
-                    <Tag v-for="tag in tags" class="m-1 w-[120px]" rounded
-                        :severity="selectedTags.includes(tag) ? 'success' : 'secondary'">
-                        <div class="flex align-items-center gap-2 px-1 relative w-100">
-                            <p class="delay-150 duration-300 hover:scale-105 cursor-pointer mr-auto line-clamp-1 text-[10px]"
-                                v-tooltip.bottom="tag" @click="selectTag(tag)">{{ tag }}</p>
-                            <Button icon="pi pi-thumbtack" class="h-[14px] w-[14px] mt-auto mb-auto z-20" text rounded
-                                aria-label="refresh" @click="fixTag(tag)" />
-                        </div>
-                    </Tag>
+            </template>
+            <template #footer>
+                <div class="py-2 px-3 text-xs flex flex-col">
+                    <p>いずれかを選択することで<i class="text-xs pi pi-twitter"></i>に送信されます。</p>
+                    <p>右クリックでタグ固定・解除ができます。</p>
                 </div>
-            </div>
-        </ScrollPanel>
+            </template>
+        </MultiSelect>
     </div>
+    <ContextMenu ref="fixedMenu" :model="fixedItems" />
+    <ContextMenu ref="detectedMenu" :model="detectedItems" />
 </template>

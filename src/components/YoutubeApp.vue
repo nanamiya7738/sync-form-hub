@@ -11,8 +11,10 @@ let prevPageData: TabInfo = {
     tabId: 0,
     title: "",
     url: "",
+    channelIcon: "",
     isLive: false
 }
+let isSelected = false
 
 setInterval(() => {
     const infoText = document.querySelector<HTMLDivElement>("ytd-watch-metadata")
@@ -20,11 +22,36 @@ setInterval(() => {
 
     sendPageData(infoText)
     sendTagData(infoText)
+
+    setColoer()
+    if (isSelected) {
+
+    }
 }, 1000)
 
 onMessage<string>('text-send', async ({ data }) => {
     return await sendComment(data)
 })
+
+onMessage<string>('change-page-selection', async ({ data }) => {
+    isSelected = data === "selected"
+    setColoer()
+})
+
+const setColoer = () => {
+    const infoText = document.querySelector<HTMLDivElement>("ytd-watch-metadata")
+    if (infoText === null) return null
+    const liveChatFrame = document.querySelector<HTMLIFrameElement>('iframe.style-scope.ytd-live-chat-frame')
+    if (liveChatFrame?.contentDocument === null) return
+    const headerFrame = liveChatFrame?.contentDocument.querySelector('yt-live-chat-header-renderer')
+    if (headerFrame === null) return
+
+    if (isSelected) {
+        headerFrame?.setAttribute("style", "background-color: darkcyan")
+    } else {
+        headerFrame?.setAttribute("style", "")
+    }
+}
 
 const sendPageData = (infoText: HTMLDivElement) => {
     const url = window.location.href
@@ -32,10 +59,12 @@ const sendPageData = (infoText: HTMLDivElement) => {
         tabId: 0,
         title: "",
         url: url,
+        channelIcon: "",
         isLive: false
     }
     setTitle(infoText, pageData)
     setIsLibe(pageData)
+    setChannelIcon(infoText, pageData)
 
     if (JSON.stringify(prevPageData) !== JSON.stringify(pageData)) {
         sendMessage<TabInfo>("send-page-data", pageData)
@@ -71,6 +100,11 @@ const setIsLibe = (pageData: TabInfo) => {
     if (!liveChatFrame?.contentDocument) return
     const chatInputBox = liveChatFrame.contentDocument.querySelector<HTMLDivElement>('#input.yt-live-chat-text-input-field-renderer')
     pageData.isLive = chatInputBox !== null
+}
+const setChannelIcon = (infoText: HTMLDivElement, pageData: TabInfo) => {
+    const icon = infoText.querySelector<HTMLImageElement>("a.yt-simple-endpoint.ytd-video-owner-renderer > yt-img-shadow > img")
+    if (!icon?.src) return
+    pageData.channelIcon = icon?.src
 }
 
 const setChannelTag = (infoText: HTMLDivElement, tagList: string[]) => {

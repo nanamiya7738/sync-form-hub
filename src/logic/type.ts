@@ -4,5 +4,6 @@ export type TabInfo = {
     title: string
     url: string
     isLive: boolean
+    channelIcon: string
 }
 export type AppType = "youtube" | "twitter" | ""

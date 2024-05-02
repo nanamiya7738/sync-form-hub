@@ -5,7 +5,6 @@ import { onMessage, sendMessage } from 'webext-bridge/options'
 import Button from 'primevue/button';
 import Textarea from 'primevue/textarea';
 import FloatLabel from 'primevue/floatlabel';
-import InputSwitch from "primevue/inputswitch";
 import BlockUI from 'primevue/blockui';
 import ProgressSpinner from 'primevue/progressspinner';
 import Toast from 'primevue/toast';
@@ -24,7 +23,6 @@ const loading = ref(false)
 const validation = ref(false)
 const textAreaInvalid = ref(false)
 const selectedTabInvalid = ref(false)
-const twitterSend = ref(true)
 const selectedTags = ref<string[]>([])
 const selectedTabs = ref<TabInfo[]>([])
 const shareTweetMode = ref(false)
@@ -62,8 +60,9 @@ watch(text, (val) => {
   textConut.value = countText(val)
 })
 watch(selectedTags, (val) => {
-  if (val.length > 0) {
-    maxTextConut.value = (280 - countText(val.join(" ")))
+  const list = val.filter(item => item !== "##")
+  if (list.length > 0) {
+    maxTextConut.value = (280 - countText(list.join(" ")))
   } else {
     maxTextConut.value = 280
   }
@@ -108,7 +107,6 @@ const handleKeydownEnter = (e: KeyboardEvent) => {
 
 const setShareMode = () => {
   shareTweetMode.value = true
-  twitterSend.value = true
   text.value = `${selectedTabs.value[0].title} \r${selectedTabs.value[0].url} @YouTubeより`
 }
 
@@ -125,7 +123,7 @@ const validate = () => {
     textAreaInvalid.value = false
   }
 
-  if (!twitterSend.value && selectedTabs.value.length === 0) {
+  if (selectedTags.value.length === 0 && selectedTabs.value.length === 0) {
     selectedTabInvalid.value = true
   } else {
     selectedTabInvalid.value = false
@@ -144,7 +142,7 @@ const send = () => {
   }
   loading.value = true
 
-  if (twitterSend.value) {
+  if (selectedTags.value.length > 0) {
     sendTweet()
   }
   if (!shareTweetMode.value && selectedTabs.value.length > 0) {
@@ -159,8 +157,9 @@ const send = () => {
 
 const sendTweet = () => {
   let twitterText = text.value
-  if (selectedTags.value.length > 0) {
-    twitterText = twitterText + " " + selectedTags.value.join(" ")
+  const filteredTags = selectedTags.value.filter(item => item !== "##")
+  if (filteredTags.length > 0) {
+    twitterText = twitterText + " " + filteredTags.join(" ")
   }
   twitterText = encodeURIComponent(twitterText)
   const url = `https://twitter.com/intent/post?text=${twitterText}&sfh=${thisTabId}`
@@ -193,9 +192,11 @@ const refresh = () => {
   loading.value = false
   validation.value = false
   text.value = ""
-  twitterSend.value = true
   selectedTabs.value = []
 }
+
+const selectTags = (tags: string[]) => { selectedTags.value = tags }
+const selectTabs = (tabs: TabInfo[]) => { selectedTabs.value = tabs }
 </script>
 
 <template>
@@ -225,27 +226,24 @@ const refresh = () => {
               <Button v-if="!shareTweetMode" class="bg-white" icon="pi pi-twitter" label="選択した枠を共有" severity="info" text
                 aria-label="share" @click="setShareMode" />
             </div>
+            <p v-if="selectedTabs.length === 0 && selectedTags.length === 0"
+              :class="selectedTabInvalid ? 'text-red-400' : 'text-gray-500'">
+              最低１件の送信先を選択してください</p>
             <p class="ml-auto">{{ textConut }} / {{ maxTextConut }}</p>
           </div>
         </FloatLabel>
-        <div class="flex flex-row w-[100vw]">
-          <div class="basis-1/2">
-            <BlockUI :blocked="shareTweetMode === true" class="z-10">
-              <TabSelector @select-tabs="(value) => selectedTabs = value" @share="() => shareTweetMode = true"
-                :selected-tab-invalid="selectedTabInvalid" />
-            </BlockUI>
+        <BlockUI :blocked="shareTweetMode === true" class="flex flex-col mt-2 z-10">
+          <div class="flex flex-row w-full mb-3">
+            <TagSelector @select-tags="selectTags" :share-tweet-mode="shareTweetMode"
+              :selected-tab-invalid="selectedTabInvalid" />
           </div>
-          <div class="basis-1/2">
-            <TagSelector @select-tags="(value) => selectedTags = value" />
+          <div class="flex flex-row h-full w-full">
+            <TabSelector @select-tabs="selectTabs" @share="() => shareTweetMode = true"
+              :selected-tab-invalid="selectedTabInvalid" />
           </div>
-        </div>
-
+        </BlockUI>
       </div>
       <div class="fixed bottom-2 right-2 flex flex-row z-20">
-        <i class="mt-auto mb-auto p-0 pi pi-twitter"></i>
-        <p class="mt-auto mb-auto text-xs mr-2" :class="selectedTabInvalid ? 'text-red-400' : 'text-gray-500'">
-          Twitter同時投稿を有効化</p>
-        <InputSwitch class="mr-5" v-model="twitterSend" :disabled="shareTweetMode" />
         <div ref="buttonRef">
           <Button
             class="p-1 border-solid border-2 border-slate-300 rounded-lg delay-150 duration-300 hover:scale-110 bg-white"
