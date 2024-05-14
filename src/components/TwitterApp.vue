@@ -26,7 +26,7 @@ const postTweet = () => {
         const url = window.location.href
         if (url.includes("https://twitter.com/intent/post")) {
 
-            const sendButton = document.querySelector<HTMLDivElement>("div[data-testid='tweetButton']")
+            const sendButton = document.querySelector<HTMLDivElement>("button[data-testid='tweetButton'],div[data-testid='tweetButton']")
             if (!sendButton) {
                 throw "セレクタ検索エラー"
             }
