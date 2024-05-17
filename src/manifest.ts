@@ -5,7 +5,7 @@ import { isDev, isFirefox, port, r } from '../scripts/utils'
 
 export async function getManifest() {
   const pkg = await fs.readJSON(r('package.json')) as typeof PkgType
-  const target_url = ["https://www.youtube.com/*", "https://twitter.com/*", "https://vische-server.onrender.com/*"]
+  const target_url = ["https://www.youtube.com/*", "https://twitter.com/*", "https://x.com/*", "https://vische-server.onrender.com/*"]
   // const target_url_all = ['<all_urls>']
   // const host_permissions = ['*://*/*']
 

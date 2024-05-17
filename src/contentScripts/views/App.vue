@@ -9,7 +9,7 @@ setInterval(() => {
   let tempAppType: AppType = ""
   if (url.includes("https://www.youtube.com/watch?")) {
     tempAppType = "youtube"
-  } else if (url.includes("https://twitter.com/")) {
+  } else if (url.includes("https://twitter.com/") || url.includes("https://x.com/")) {
     tempAppType = "twitter"
   }
 

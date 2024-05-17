@@ -24,7 +24,7 @@ const postTweet = () => {
             throw "試行回数エラー"
         }
         const url = window.location.href
-        if (url.includes("https://twitter.com/intent/post")) {
+        if (url.includes("https://twitter.com/intent/post") || url.includes("https://x.com/intent/post")) {
 
             const sendButton = document.querySelector<HTMLDivElement>("button[data-testid='tweetButton'],div[data-testid='tweetButton']")
             if (!sendButton) {
